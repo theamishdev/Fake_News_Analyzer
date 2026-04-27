@@ -1,0 +1,6 @@
+Flask
+requests
+waitress
+pandas
+scikit-learn
+joblib
