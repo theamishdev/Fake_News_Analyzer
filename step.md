@@ -7,9 +7,9 @@ This guide provides step-by-step instructions for showcasing the modern DevOps w
 Docker simplifies deployment by packaging the frontend, backend, and ML services into isolated containers.
 
 ### 1. Build and Launch the Stack
-Run the following command in the project root to build all images and start the containers:
+Run the following command in the project root to build all images and start the containers in detached mode:
 ```bash
-docker-compose up --build
+docker-compose up -d --build
 ```
 *   **Showcase Point**: Note how Docker Orchestration manages inter-service dependencies (multi-tier architecture).
 

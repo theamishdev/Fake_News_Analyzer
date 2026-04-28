@@ -1,4 +1,3 @@
-version: '3.8'
 
 services:
   frontend:
@@ -67,3 +66,4 @@ services:
 networks:
   news-network:
     driver: bridge
+

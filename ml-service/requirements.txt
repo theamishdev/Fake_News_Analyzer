@@ -4,3 +4,4 @@ waitress
 pandas
 scikit-learn
 joblib
+gunicorn
