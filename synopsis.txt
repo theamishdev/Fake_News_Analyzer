@@ -1,0 +1,292 @@
+Project Title: Fake News Analyzer — Microservice-Based News Classification and CI/CD Deployment
+
+1. Project Title and Problem Statement
+
+Title
+Fake News Analyzer: A Containerized Microservice for Automated Fake News Detection with CI/CD
+
+Problem Statement
+The rapid spread of misinformation and fake news across social media and online platforms presents a significant challenge to public discourse, trust, and democratic processes. Manual fact-checking is labor-intensive and cannot scale to match the volume and velocity of content. This project aims to design, implement, and deploy a modular Fake News Analyzer that combines machine learning-based text classification with a production-ready microservice architecture. The system will be containerized using Docker and integrated into automated CI/CD pipelines (options include GitHub Actions and Jenkins) so the model and application can be continuously built, tested, and deployed. The goal is to produce a reproducible, maintainable, and testable system that can classify incoming news articles as "fake" or "real," provide an explainable result pipeline, and demonstrate an industrial-grade deployment workflow.
+
+Objectives
+- Build a modular microservice architecture comprising: a frontend UI, a Java Spring Boot backend API, and a Flask-based ML service hosting a trained classification model.
+- Containerize each component with Docker and orchestrate locally via Docker Compose during development.
+- Implement automated builds, tests, and deployments using CI/CD tools (GitHub Actions and/or Jenkins) combined with Maven where relevant.
+- Integrate logging and monitoring using an ELK stack (ElasticSearch, Logstash, Kibana) to collect runtime logs and enable observability.
+- Evaluate model performance using standard metrics (accuracy, precision, recall, F1-score) and produce an experimental report.
+
+Scope
+- Develop and train a text classification model using the included dataset (Fake.csv, True.csv).
+- Expose the model as an HTTP API in a separate `ml-service` container.
+- Create a RESTful backend (`backend` module) that orchestrates request handling, calls the ML service, and provides endpoints consumed by the frontend.
+- Provide a single-page frontend demonstrating the classification flow and basic result visualization.
+- Implement at least one CI/CD pipeline configuration and document alternative pipeline options.
+
+2. Project Overview and System Components
+
+High-level Components
+- Frontend: React single-page application (SPA) that allows users to paste or upload an article, send it to the backend, and receive classification results and confidence scores.
+- Backend API: Java Spring Boot application which validates input, forwards text to the ML service, interprets model output, and returns structured results to the frontend.
+- ML Service: Python Flask application serving the trained classification model (scikit-learn pipeline saved as `.joblib` files), performing preprocessing (TF-IDF vectorization), classification, and returning probabilities/explanations.
+- ELK (optional): Collect logs with Logstash and visualize in Kibana; ElasticSearch stores logs for debugging and analytics.
+- Orchestration: Docker Compose for local development; images stored in a container registry (Docker Hub or a private registry) for CI/CD pipelines.
+
+Repository Structure (as in current workspace)
+- `backend/`: Spring Boot project (Maven) with source code and `application.properties`.
+- `frontend/`: React app with `App.js`, `index.js`, and `public/index.html`.
+- `ml-service/`: Python model server with `app.py`, `news_model.joblib`, `tfidf_vectorizer.joblib`, and `train_model.py`.
+- `docker-compose.yml`: Local composition for development and integrated testing.
+
+3. Tools / Technologies Used (Combination Options)
+
+This project supports multiple CI/CD and build tool combinations. Each combination is described with rationale and pipeline steps.
+
+Option A — Docker + Maven
+- Use case: Teams preferring local container builds while controlling Java build lifecycle via Maven.
+- Rationale: Maven manages Java dependencies and build phases; Docker packages the runnable artifact into images for deployment.
+- Pipeline summary:
+  - `mvn clean package` to build backend JAR.
+  - Build Docker images for `backend`, `ml-service` (Python), and `frontend`.
+  - Run integration tests locally or via Docker Compose.
+- Advantages: Simplicity; familiar Java build flow; straightforward local development.
+
+Option B — Docker + Maven + GitHub Actions
+- Use case: Automated cloud builds and deployments triggered by repository changes.
+- Rationale: GitHub Actions provides native repository integration for builds, tests, and pushing images to registries.
+- Pipeline summary:
+  - Checkout code; set up Java and Python environments; `mvn package`.
+  - Run unit tests (backend and ML unit tests) and frontend build (npm/yarn build).
+  - Build and tag Docker images; push to Docker Hub or GitHub Container Registry.
+  - Optionally trigger a deployment job to a host or orchestrator (e.g., Docker Swarm, Kubernetes, or a simple VPS using SSH).
+- Advantages: Fully integrated CI in GitHub; easy secrets handling; matrix builds.
+
+Option C — Docker + GitHub Actions
+- Use case: Non-Java-centric flows or when Maven is used only within the Docker build step.
+- Rationale: Let Dockerfiles handle dependency installation and build steps; Actions pipelines orchestrate container builds and tests.
+- Pipeline summary:
+  - Checkout code; build containers inside Actions runners using Docker; run tests within containers.
+  - Push images and deploy.
+- Advantages: Simplifies Actions pipeline by delegating build logic to Dockerfiles; useful when multi-language builds exist.
+
+Option D — Docker + Jenkins + GitHub Actions
+- Use case: Organizations using Jenkins for legacy or complex job orchestration, while keeping GitHub Actions for PR checks.
+- Rationale: Offload long-running or complex deployment workflows to Jenkins; use GitHub Actions for quick feedback and gating.
+- Pipeline summary:
+  - GitHub Actions runs unit tests and linters on PRs.
+  - Jenkins polls the repository or is triggered via webhook for full CI/CD workflow: build artifacts, push images, run integration tests, and deploy.
+- Advantages: Flexibility and separation between quick checks and heavy-duty pipelines.
+
+Option E — Docker + Maven + Jenkins
+- Use case: Enterprises requiring Jenkins for full CI/CD and Maven for Java lifecycle.
+- Rationale: Control complex build pipelines, artifact promotion, and environment gating via Jenkins pipelines.
+- Pipeline summary:
+  - Jenkins pipeline uses `mvn` to compile and test backend, runs frontend build, and builds/pushes Docker images.
+  - Jenkins can run deployment stages with manual approvals.
+- Advantages: Mature enterprise-grade tooling and plugins for complex workflows.
+
+4. Architecture / Workflow Diagram (CI/CD Pipeline)
+
+Deployment Architecture (ASCII diagram)
+
+  +------------+        +-------------+        +------------+
+  |  Frontend  | <----> |  Backend    | <----> |  ML-Service |
+  |  (React)   |  HTTP  | (SpringBoot)|  HTTP  |  (Flask)    |
+  +------------+        +-------------+        +------------+
+          |                    |                     |
+          v                    v                     v
+     Browser/Client       Docker Container       Docker Container
+          |                    |                     |
+          +--------------------+---------------------+
+                               |
+                         Docker Compose (dev)
+
+CI/CD Pipeline (ASCII flow)
+
+  Developer Push / PR
+          |
+          v
+  GitHub Actions (PR checks):
+    - Lint frontend
+    - Unit tests (backend + frontend)
+    - Static analysis (Java) and security scans
+    - Build artifacts (optional)
+          |
+          v
+  (If merge to main) -> Build stage:
+    - `mvn package` (backend)
+    - `npm run build` (frontend)
+    - Train or validate model snapshot (optional)
+    - Build Docker images for each service
+    - Push images to registry
+          |
+          v
+  Deploy stage (Jenkins or GitHub Actions):
+    - Pull images on target host
+    - Run migrations (if any)
+    - Start/Restart services (Docker Compose / Kubernetes)
+    - Run smoke tests / integration tests
+    - Notify (Slack / Email)
+
+CI/CD Pipeline — Textual Steps (Example for Docker + Maven + GitHub Actions)
+1. Checkout code and set up environment.
+2. Run linters and unit tests.
+3. Build backend JAR via `mvn -DskipTests=false package`.
+4. Build frontend production bundle `npm run build`.
+5. Build Docker images (backend: use JAR; frontend: serve static files; ml-service: use Python with pre-installed libraries and joblib model).
+6. Tag images with build number and commit SHA.
+7. Push images to container registry.
+8. Trigger deployment job to staging (automated) and to production (manual approval).
+9. Run integration tests and performance checks.
+10. Rollback plan: maintain last-good image tag and allow redeploy via pipeline.
+
+5. Detailed Design
+
+Data Flow
+- Ingestion: The frontend collects an article and sends it to the backend via a REST POST endpoint.
+- Preprocessing: The backend performs basic sanitization and then forwards the text to the ML service.
+- Inference: The ML service transforms input using the stored TF-IDF vectorizer and runs the classifier to produce a probability and label.
+- Response: The ML service returns a JSON payload with predicted label, probability, and optionally top contributing features (for explanation).
+- Presentation: The backend adapts the response into a user-friendly format for the frontend.
+
+Model Details
+- Dataset: `Fake.csv` and `True.csv` containing labeled news articles.
+- Preprocessing steps: lowercase, remove punctuation, stopword removal, tokenization, and TF-IDF vectorization.
+- Candidate models: Logistic Regression (baseline), Support Vector Machines, Random Forests, and ensemble methods. The existing model is a scikit-learn pipeline saved as `news_model.joblib` with a `tfidf_vectorizer.joblib` persisted.
+- Evaluation: Use stratified train/test splits and cross-validation to compute accuracy, precision, recall and F1-score. AUC-ROC can be reported for probabilistic outputs.
+
+Testing Strategy
+- Unit tests: Backend controllers, service logic, and ML preprocessing functions.
+- Integration tests: End-to-end test via Docker Compose that runs frontend/backend/ml-service and asserts classification for selected inputs.
+- Model validation tests: Evaluate the model on a held-out dataset; guard the pipeline to prevent deploying if model metrics drop below thresholds.
+- Smoke tests: Basic health-check endpoints for each container.
+
+Security Considerations
+- Secrets (registry credentials, deployment keys) stored in CI secrets manager (GitHub Secrets or Jenkins credentials store).
+- Input validation and rate-limiting on the backend to mitigate abuse.
+- Scan container images for known vulnerabilities and keep base images minimal.
+
+6. Expected Results and Evaluation
+
+Functional Expectations
+- The system should reliably classify news articles as fake or real with a reasonable performance baseline (target F1-score >= 0.85 depending on dataset quality and class balance).
+- The backend should respond within acceptable latency for interactive use (target < 500 ms for inference when model served locally; may be higher depending on vectorizer/model size).
+- The frontend should present a clean UX for input, showing predicted label, confidence score, and a brief explanation.
+
+CI/CD Expectations
+- PRs are automatically validated by linters and unit tests via GitHub Actions.
+- Merges to main trigger an automated build and push of Docker images to a registry.
+- Deployments to staging occur automatically; production deployments require a manual approval step.
+- Rollback to the prior Docker image tag will be possible via pipeline steps.
+
+Performance / Accuracy Evaluation
+- Accuracy: Report the fraction of correctly classified instances on the test set.
+- Precision / Recall: Especially important for the "fake" class to avoid false positives/negatives.
+- F1-Score: Single-number summary of model performance.
+- Inference latency: Measure at varying load levels; use simple benchmarking to estimate throughput.
+
+7. Implementation Plan and Timeline
+
+Milestone 1 — Setup & Research (Week 1)
+- Explore dataset and baseline model training.
+- Create initial project skeletons for backend, frontend, and ml-service.
+
+Milestone 2 — Model Training & Serving (Week 2)
+- Train baseline model, save `news_model.joblib` and vectorizer.
+- Implement Flask-based API to serve model predictions.
+
+Milestone 3 — Application Integration (Week 3)
+- Implement backend endpoints and frontend UI.
+- Connect components via Docker Compose; verify end-to-end flow.
+
+Milestone 4 — CI/CD & Containerization (Week 4)
+- Create Dockerfiles for each component.
+- Implement GitHub Actions workflow to build, test, and publish images.
+- Add optional Jenkins pipelines if required.
+
+Milestone 5 — Testing & Reporting (Week 5)
+- Full evaluation and robustness testing.
+- Integrate ELK or logging mechanisms and assemble final report.
+
+8. Conclusion
+
+This Fake News Analyzer project demonstrates a complete, production-oriented approach to building a machine learning-backed microservice. By dividing responsibilities across specialized components (frontend, backend, ML service) and using Docker for repeatable environments, the project is both modular and maintainable. CI/CD integration ensures rapid feedback loops for code quality and reproducible deployments; multiple pipeline configurations (GitHub Actions, Jenkins, Maven) give flexibility in adoption based on organizational constraints.
+
+Deliverables
+- Source code for `frontend`, `backend`, and `ml-service`.
+- Dockerfiles and a `docker-compose.yml` for local development.
+- GitHub Actions workflows (or Jenkinsfiles) demonstrating automated build/test/publish flows.
+- Trained model artifacts: `news_model.joblib` and `tfidf_vectorizer.joblib`.
+- A final report detailing evaluation metrics, usage instructions, and deployment steps.
+
+Appendix A — Example Commands
+
+Build and run locally with Docker Compose
+
+```
+# From repo root
+docker-compose build
+docker-compose up
+```
+
+Build backend locally with Maven
+
+```
+cd backend
+mvn clean package
+java -jar target/backend-0.0.1-SNAPSHOT.jar
+```
+
+Run ML service locally
+
+```
+cd ml-service
+pip install -r requirements.txt
+python app.py
+```
+
+Example GitHub Actions snippet (high level)
+
+```
+name: CI
+on: [push, pull_request]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      - name: Build backend
+        run: mvn -B -DskipTests=false package --file backend/pom.xml
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm ci
+          npm run build
+      - name: Build and push Docker images
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: your-registry/your-image:latest
+```
+
+Appendix B — Evaluation Metrics & Acceptance Criteria
+- Model Acceptance: Test F1-score >= 0.85 on a stratified test set.
+- Service Acceptance: End-to-end classification response within 1s under light load.
+- CI/CD Acceptance: Successful automated builds and image pushes on merge to `main`.
+
+References
+- Scikit-learn documentation: https://scikit-learn.org
+- Docker documentation: https://docs.docker.com
+- GitHub Actions: https://docs.github.com/actions
+- Jenkins: https://www.jenkins.io
+
+Contact / Acknowledgements
+Project developed as part of the INT332 coursework. Implemented by the student using the provided repository skeleton.
+
+---
+(End of synopsis)
